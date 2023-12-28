@@ -1,46 +1,62 @@
-public class User {
-    private String name;
-    private String email;
-    private String password;
-    private String phone;
-    private String country;
+public abstract class User {
+    private static int idCounter = 1;
+    private final int id;
+    private String username;
+    private String password;  // Store the hashed password
 
-    public User(String name, String email, String password, String phone, String country) {
-        this.name = name;
-        this.email = email;
+    // Constructors`
+    private User() {
+        this.id = idCounter++;
+    }
+
+    protected User(String username, String password) {
+        this();
+
+        Utils.checkUsername(username);
+        this.username = username;
+
+        Utils.checkPassword(password);
         this.password = Utils.md5Hash(password);
-        this.phone = phone;
-        this.country = country;
     }
 
-    public String getName() {
-        return this.name;
+    // Getters and Setters
+    public int getId() {
+        return id;
     }
 
-    public String getEmail() {
-        return this.email;
+    public String getUsername() {
+        return username;
     }
 
+    public void setUsername(String username) {
+        Utils.checkUsername(username);
+        this.username = username;
+    }
+
+    // Hash the password using md5Hash from Utils
+    public void setPassword(String password) {
+        Utils.checkPassword(password);
+        this.password = Utils.md5Hash(password);
+    }
+
+    // ToDo: Unsafe, remove!
+    public String getPassword() {
+        return password;
+    }
+
+    // Check if a given plaintext password matches the stored hash
     public boolean checkPassword(String password) {
-        String hashedPass = Utils.md5Hash(password);
-        return (hashedPass != null && (this.password == hashedPass || this.password.equals(hashedPass)));
+        Utils.checkPassword(password);
+        return Utils.md5Hash(password).equals(password);
     }
 
-    public String getPhone() {
-        return this.phone;
-    }
-
-    public String getCountry() {
-        return this.country;
-    }
-
-    public static void main(String[] args) {
-        User ziad = new User("Ziad", "ziad.amerr@yahoo.com", "123456", "123456789", "Egypt");
-        System.out.println(ziad.getName());
-        System.out.println(ziad.getEmail());
-        System.out.println(ziad.checkPassword("123456"));
-        System.out.println(ziad.checkPassword("1234567"));
-        System.out.println(ziad.getPhone());
-        System.out.println(ziad.getCountry());
+    // toString method for debugging or logging
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                '}';
     }
 }

@@ -1,4 +1,3 @@
-import javax.xml.xpath.XPathEvaluationResult;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -10,7 +9,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.sql.ResultSetMetaData;
 
-public class DBExample {
+public class DB {
 
     // JDBC URL, username, and password of MySQL server
     private static final String JDBC_URL = "jdbc:mysql://localhost:3306/db";
@@ -29,6 +28,11 @@ public class DBExample {
         // Connect to the database
         try (Connection connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD)) {
 
+            insertEntry(connection, "users", Map.of(
+                    "username", "ziad",
+                    "password", "123456"
+            ));
+
             String query = "SELECT * FROM users";
 
             List<Map<String, Object>> list = executeQuery(connection, query);
@@ -40,16 +44,6 @@ public class DBExample {
                 System.out.println();
                 System.out.println();
             }
-
-//            // Example: Insert data into the users table
-////            insertUserData(connection, "Ziad", "Amer", "ziad.amerr@yahoo.com", "123456");
-//
-//            // Example: Query data from the users table
-//            queryUserData(connection);
-//
-//            // Get all users
-//            String sql = "SELECT * FROM users";
-//            System.out.println(executeQuery(connection, sql));
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -90,79 +84,72 @@ public class DBExample {
 
         return null;
     }
-    public static boolean insertToTable(Connection connection, String table, String[] columns, String[] values) throws SQLException {
-        String sql = "INSERT INTO " + table + " (";
-        for (int i = 0; i < columns.length; i++) {
-            sql += columns[i];
-            if (i != columns.length - 1) {
-                sql += ", ";
-            }
-        }
-        sql += ") VALUES (";
-        for (int i = 0; i < values.length; i++) {
-            sql += "?";
-            if (i != values.length - 1) {
-                sql += ", ";
-            }
-        }
-        sql += ")";
 
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            // Set values for the prepared statement
-            for (int i = 0; i < values.length; i++) {
-                statement.setString(i + 1, values[i]);
-            }
+    public static void insertEntry(Connection connection, String tableName, Map<String, Object> columnValues) throws SQLException {
+        StringBuilder sqlBuilder = new StringBuilder("INSERT INTO ")
+                .append(tableName)
+                .append(" (");
 
-            // Execute the SQL query
-            int rowsInserted = statement.executeUpdate();
-            if (rowsInserted > 0) {
-                return true;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        // Append column names
+        for (String columnName : columnValues.keySet()) {
+            sqlBuilder.append(columnName).append(", ");
         }
-        return false;
-    }
+        sqlBuilder.delete(sqlBuilder.length() - 2, sqlBuilder.length()); // Remove the last comma and space
+        sqlBuilder.append(") VALUES (");
 
-    public static void emptyTable(Connection connection, String table) throws SQLException {
-        String sql = "DELETE FROM " + table;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        // Append placeholders for values
+        for (int i = 0; i < columnValues.size(); i++) {
+            sqlBuilder.append("?, ");
+        }
+        sqlBuilder.delete(sqlBuilder.length() - 2, sqlBuilder.length()); // Remove the last comma and space
+        sqlBuilder.append(")");
+
+        try (PreparedStatement statement = connection.prepareStatement(sqlBuilder.toString())) {
+            int parameterIndex = 1;
+            for (Object value : columnValues.values()) {
+                statement.setObject(parameterIndex++, value);
+            }
+
             statement.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
+            // Handle or rethrow the exception if needed
         }
     }
 
-    private static void insertUserData(Connection connection, String fname, String lname, String email, String password) throws SQLException {
-        String sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+    public static Object getEntryColumn(Connection connection, String tableName, String columnName, String columnToMatch, Object valueToMatch) throws SQLException {
+        String sql = "SELECT " + columnName + " FROM " + tableName + " WHERE " + columnToMatch + " = ?";
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            // Set values for the prepared statement
-            String username = generateUsername(fname, lname); // You can implement your own logic to generate a username
-            statement.setString(1, username);
-            statement.setString(2, password);
+            statement.setObject(1, valueToMatch);
 
-            // Execute the SQL query
-            int rowsInserted = statement.executeUpdate();
-            if (rowsInserted > 0) {
-                System.out.println("User inserted successfully!");
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getObject(columnName);
+                }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+
+        return null;
     }
 
-    private static ResultSet queryUserData(Connection connection) throws SQLException {
-        String sql = "SELECT * FROM users";
+    public static int getId(Connection connection, String username) throws SQLException {
+        String sql = "SELECT id FROM users WHERE username = ?";
 
-        try (PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet resultSet = statement.executeQuery()) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, username);
 
-            // Process the result set
-            return resultSet;
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getInt("id");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-    }
 
-    private static String generateUsername(String fname, String lname) {
-        // Implement your own logic to generate a unique username based on the first and last name
-        return fname.toLowerCase() + "_" + lname.toLowerCase();
+        return -1;
     }
 }
